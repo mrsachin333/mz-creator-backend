@@ -211,6 +211,10 @@ def build_video_filters(req: EditJob) -> list[str]:
     if req.fps:
         vf.append(f"fps={req.fps}")
 
+    # H.264 / yuv420p requires even frame dimensions.
+    # This is a no-op for normal even-sized video and safely rounds odd dimensions down by 1 px.
+    vf.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
+
     return vf
 
 
@@ -267,7 +271,7 @@ def process_transcode(job_id: str, req: TranscodeJob):
         out_file = OUTPUT_DIR / f"{job_id}.mp4"
         cmd = [
             "ffmpeg", "-y", "-i", str(src),
-            "-vf", f"scale=-2:{height}:force_original_aspect_ratio=decrease",
+            "-vf", f"scale=-2:{height}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "128k",
@@ -360,7 +364,7 @@ def process_merge(job_id: str, req: MergeJob):
             out = OUTPUT_DIR / f"{job_id}_part{i}.mp4"
             cmd = [
                 "ffmpeg", "-y", "-i", str(src),
-                "-vf", f"scale=-2:{height}:force_original_aspect_ratio=decrease",
+                "-vf", f"scale=-2:{height}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
                 "-r", "30",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
                 "-pix_fmt", "yuv420p",
@@ -467,7 +471,7 @@ def root():
     return {
         "name": "MZ Creator Studio Backend",
         "status": "online",
-        "version": "2.0.0",
+        "version": "2.0.1",
         "step": "FFmpeg Media Engine",
     }
 
@@ -480,7 +484,7 @@ def health():
         "ok": ffmpeg_ok and ffprobe_ok,
         "ffmpeg": ffmpeg_ok,
         "ffprobe": ffprobe_ok,
-        "version": "2.0.0",
+        "version": "2.0.1",
     }
 
 
